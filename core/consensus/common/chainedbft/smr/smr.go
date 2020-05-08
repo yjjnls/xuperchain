@@ -193,6 +193,7 @@ func (s *Smr) ProcessNewView(viewNumber int64, leader, preLeader string) error {
 		p2p_base.WithBcName(s.bcname),
 		p2p_base.WithTargetPeerAddrs([]string{s.getAddressPeerURL(leader)}),
 	}
+	s.slog.Error("=====>[smr.ProcessNewView] broadcast new view", "viewNumber", viewNumber, "JustifyQC", hex.EncodeToString(newViewMsg.JustifyQC.GetProposalId()))
 	go s.p2p.SendMessage(context.Background(), netMsg, opts...)
 	return nil
 }
@@ -236,6 +237,7 @@ func (s *Smr) ProcessProposal(viewNumber int64, proposalID,
 			PublicKey: s.publicKey,
 		},
 	}
+	s.slog.Info("=====>[smr.ProcessProposal] make new proposal", "viewNumber", viewNumber, "ProposalId", hex.EncodeToString(proposalID))
 
 	propMsg, err := utils.MakePhaseMsgSign(s.cryptoClient, s.privateKey, propMsg)
 	if err != nil {
@@ -307,6 +309,7 @@ func (s *Smr) handleReceivedVoteMsg(msg *p2p_pb.XuperMessage) error {
 			"logid", msg.GetHeader().GetLogid(), "error", err)
 		return err
 	}
+	s.slog.Error("<=====[smr.handleReceivedVoteMsg] receive votes", "proposalId", hex.EncodeToString(voteMsg.GetProposalId()))
 
 	// as a leader, if the num of votes about proposalQC more than (n -f), need to update local status
 	if s.checkVoteNum(voteMsg.GetProposalId()) {
@@ -316,6 +319,7 @@ func (s *Smr) handleReceivedVoteMsg(msg *p2p_pb.XuperMessage) error {
 			return ErrGetLocalProposalQC
 		}
 		proposQC := v.(*pb.QuorumCert)
+		s.slog.Error("<=====[smr.handleReceivedVoteMsg] receive more than n-f votes")
 		s.updateQcStatus(nil, proposQC, s.generateQC)
 		v, ok = s.qcVoteMsgs.Load(string(voteMsg.GetProposalId()))
 		if !ok {
@@ -363,6 +367,7 @@ func (s *Smr) handleReceivedProposal(msg *p2p_pb.XuperMessage) error {
 		s.slog.Error("handleReceivedProposal call prePropsQC error", "error", err)
 		return err
 	}
+	s.slog.Info("<=====[smr.handleReceivedProposal] receive proposal", "propsQC", hex.EncodeToString(propsQC.GetProposalId()), "prePropsQC", hex.EncodeToString(prePropsQC.GetProposalId()))
 
 	// Step2: judge safety
 	ok, err := s.safeProposal(propsQC, prePropsQC)
@@ -377,10 +382,10 @@ func (s *Smr) handleReceivedProposal(msg *p2p_pb.XuperMessage) error {
 		s.slog.Error("handleReceivedProposal voteProposal error", "error", err)
 		return err
 	}
-
+	s.slog.Info("<=====[smr.handleReceivedProposal] vote propsQC")
 	// Step4: update state
 	if prePropsQC != nil && bytes.Equal(prePropsQC.GetProposalId(), s.generateQC.GetProposalId()) {
-		s.slog.Info("handleReceivedProposal as the preleader, no need to updateQcStatus.")
+		s.slog.Info("<=====[smr.handleReceivedProposal] handleReceivedProposal as the preleader, no need to updateQcStatus.")
 		return nil
 	}
 	// propsQC is the first QC
@@ -396,6 +401,7 @@ func (s *Smr) handleReceivedProposal(msg *p2p_pb.XuperMessage) error {
 		s.slog.Error("handleReceivedProposal call prePrePropsQC error", "error", err)
 		return err
 	}
+	s.slog.Info("<=====[smr.handleReceivedProposal] receive proposal", "prePrePropsQC", hex.EncodeToString(prePrePropsQC.GetProposalId()))
 	s.updateQcStatus(propsQC, prePropsQC, prePrePropsQC)
 	return nil
 }
@@ -436,9 +442,9 @@ func (s *Smr) updateQcStatus(proposalQC, generateQC, lockedQC *pb.QuorumCert) er
 	s.generateQC = generateQC
 	s.proposalQC = proposalQC
 	// debuglog
-	s.slog.Info("updateQcStatus result", "proposalQCId", hex.EncodeToString(proposalQC.GetProposalId()))
-	s.slog.Info("updateQcStatus result", "generateQCId", hex.EncodeToString(generateQC.GetProposalId()))
-	s.slog.Info("updateQcStatus result", "lockedQCId", hex.EncodeToString(lockedQC.GetProposalId()))
+	s.slog.Info("<=====updateQcStatus result", "proposalQCId", hex.EncodeToString(proposalQC.GetProposalId()))
+	s.slog.Info("<=====updateQcStatus result", "generateQCId", hex.EncodeToString(generateQC.GetProposalId()))
+	s.slog.Info("<=====updateQcStatus result", "lockedQCId", hex.EncodeToString(lockedQC.GetProposalId()))
 	s.lk.Unlock()
 	return nil
 }
@@ -499,6 +505,7 @@ func (s *Smr) addViewMsg(msg *pb.ChainedBftPhaseMessage) error {
 	}
 	// add JustifyQC
 	justify := msg.GetJustifyQC()
+	s.slog.Info("<=====[smr.addViewMsg] receive new view", "viewNumber", msg.GetViewNumber(), "justify", hex.EncodeToString(justify.GetProposalId()))
 	if justify != nil {
 		s.slog.Info("addViewMsg GetJustifyQC not nil", "justifyId", hex.EncodeToString(justify.GetProposalId()),
 			"proposalId", hex.EncodeToString(s.proposalQC.GetProposalId()), "GetJustifyQC.SignInfos", justify.GetSignInfos())

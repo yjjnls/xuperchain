@@ -560,7 +560,7 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	blkTimer := global.NewXTimer()
-	l.xlog.Info("start to confirm block", "blockid", fmt.Sprintf("%x", block.Blockid), "txCount", len(block.Transactions))
+	l.xlog.Info("=====[ledger.ConfirmBlock] verify and wirte block to ledger", "blockid", global.F(block.Blockid), "txCount", len(block.Transactions), "height", block.Height, "previousHash", global.F(block.PreHash))
 	var confirmStatus ConfirmStatus
 	dummyTransactions := []*pb.Transaction{}
 	realTransactions := block.Transactions // 真正的交易转存到局部变量
@@ -587,6 +587,7 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 		newMeta.TipBlockid = block.Blockid
 		block.InTrunk = true
 		block.Height = 0 // 创世纪块是第0块
+		l.xlog.Info("=====ledger.ConfirmBlock generate genesis block", "height", 0, "blockId", global.F(block.Blockid))
 	} else { //非创世块,需要判断是在主干还是分支
 		preHash := block.PreHash
 		preBlock, findErr := l.fetchBlock(preHash)
@@ -597,6 +598,8 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 		}
 		block.Height = preBlock.Height + 1 //不管是主干还是分支，height都是++
 		if bytes.Equal(preBlock.Blockid, newMeta.TipBlockid) {
+			l.xlog.Info("=====[ledger.ConfirmBlock] add block in trunk")
+
 			//在主干上添加
 			block.InTrunk = true
 			preBlock.NextHash = block.Blockid
@@ -615,6 +618,7 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 		} else {
 			//在分支上
 			if preBlock.Height+1 > newMeta.TrunkHeight {
+				l.xlog.Info("=====[ledger.ConfirmBlock] switch trunk")
 				//分支要变成主干了
 				oldTip := append([]byte{}, newMeta.TipBlockid...)
 				newMeta.TrunkHeight = preBlock.Height + 1
@@ -632,6 +636,8 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 				l.xlog.Info("handle split successfully", "splitBlock", fmt.Sprintf("%x", splitBlock.Blockid))
 			} else {
 				// 添加在分支上, 对preblock没有影响
+				l.xlog.Info("=====[ledger.ConfirmBlock] add block in branch")
+
 				block.InTrunk = false
 				confirmStatus.Split = true
 				confirmStatus.TrunkSwitch = false
@@ -639,6 +645,7 @@ func (l *Ledger) ConfirmBlock(block *pb.InternalBlock, isRoot bool) ConfirmStatu
 			}
 		}
 	}
+	l.xlog.Info("=====[ledger.ConfirmBlock] save block")
 	saveErr := l.saveBlock(block, batchWrite)
 	blkTimer.Mark("saveHeader")
 	if saveErr != nil {

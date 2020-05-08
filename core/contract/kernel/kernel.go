@@ -221,6 +221,7 @@ func (k *Kernel) CreateBlockChain(name string, data []byte) error {
 		os.RemoveAll(fullpath)
 		return ErrCreateBlockChain
 	}
+	k.log.Info("=====kernel.CreateBlockChain start to confirm genesis block")
 	ledger.ConfirmBlock(b, true)
 	k.log.Info("ConfirmBlock Success", "Height", 1)
 	//TODO 因为是创建创世块，所以这里不填写publicKey和address, 后果是如果存在合约的话，肯定是执行失败

@@ -127,9 +127,10 @@ func (dpm *DPoSPaceMaker) IsLastViewConfirmed() (bool, error) {
 		dpm.log.Info("IsLastViewConfirmed get generate qc",
 			"proposalID", hex.EncodeToString(qc.GetProposalId()))
 	}
+	dpm.log.Info("=====>pacemaker.IsLastViewConfirmed", "tipID", hex.EncodeToString(tipID), "smr.generateQC", hex.EncodeToString(qc.GetProposalId()))
 	// qc is not valid or qc is valid but it's not the same with last block
 	if err != nil || bytes.Compare(qc.GetProposalId(), tipID) != 0 {
-		dpm.log.Warn("IsLastViewConfirmed check failed", "error", err)
+		dpm.log.Warn("=====>pacemaker.IsLastViewConfirmed check failed", "error", err)
 		return false, nil
 	}
 	return true, nil

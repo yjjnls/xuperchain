@@ -364,6 +364,8 @@ func (xc *XChainCore) ProcessSendBlock(in *pb.Block, hd *global.XContext) error 
 
 // SendBlock send block
 func (xc *XChainCore) SendBlock(in *pb.Block, hd *global.XContext) error {
+	xc.log.Info("<=====")
+	xc.log.Info("<=====[xchaincore.SendBlock] start, receive block", "height", in.Block.Height, "blockId", fmt.Sprintf("%x", in.Block.Blockid))
 	if xc.Status() != global.Normal {
 		xc.log.Debug("refused a connection at function call GenerateTx", "logid", in.Header.Logid, "cost", hd.Timer.Print())
 		return ErrServiceRefused
@@ -477,6 +479,7 @@ func (xc *XChainCore) SendBlock(in *pb.Block, hd *global.XContext) error {
 					return ErrServiceRefused
 				}
 			}
+			xc.log.Info("<=====[xchaincore.SendBlock] ConfirmBlock case 1")
 			cs := xc.Ledger.ConfirmBlock(block.Block, false)
 			xc.log.Debug("ConfirmBlock Time", "logid", in.Header.Logid, "cost", hd.Timer.Print())
 			if !cs.Succ {
@@ -517,6 +520,7 @@ func (xc *XChainCore) SendBlock(in *pb.Block, hd *global.XContext) error {
 				return ErrServiceRefused
 			}
 
+			xc.log.Info("<=====[xchaincore.SendBlock] ConfirmBlock case 2")
 			cs := xc.Ledger.ConfirmBlock(block.Block, false)
 			xc.log.Debug("ConfirmBlock Time", "logid", in.Header.Logid, "cost", hd.Timer.Print(), "blockid", global.F(block.Blockid))
 			if !cs.Succ {
@@ -541,6 +545,7 @@ func (xc *XChainCore) SendBlock(in *pb.Block, hd *global.XContext) error {
 	}
 	// 待块确认后, 共识执行相应的操作
 	xc.con.ProcessConfirmBlock(in.Block)
+	xc.log.Info("<===== verify block end")
 	if proposeBlockMoreThanConfig {
 		return ErrProposeBlockMoreThanConfig
 	}
@@ -559,6 +564,8 @@ func (xc *XChainCore) doMiner() {
 	}()
 	ledgerLastID := xc.Ledger.GetMeta().TipBlockid
 	utxovmLastID := xc.Utxovm.GetLatestBlockid()
+	xc.log.Info("=====>")
+	xc.log.Info("=====>[xchaincore.doMiner] start", "ledgerLastID", fmt.Sprintf("%x", ledgerLastID), "ledgerLastHeight", xc.Ledger.GetMeta().TrunkHeight)
 
 	if !bytes.Equal(ledgerLastID, utxovmLastID) {
 		xc.log.Warn("ledger last blockid is not equal utxovm last id")
@@ -589,6 +596,7 @@ func (xc *XChainCore) doMiner() {
 	var curTerm, curBlockNum int64
 	var targetBits int32
 	qc := (*pb.QuorumCert)(nil)
+	xc.log.Info("=====>[xchaincore.doMiner] ProcessBeforeMiner")
 	data, ok := xc.con.ProcessBeforeMiner(xc.Ledger.GetMeta().TrunkHeight+1, t.UnixNano())
 	minerTimer.Mark("ProcessBeforeMiner")
 	if ok {
@@ -602,6 +610,7 @@ func (xc *XChainCore) doMiner() {
 					if qci, ok := data["quorum_cert"].(*pb.QuorumCert); ok {
 						qc = qci
 					}
+					xc.log.Trace("=====>[xchaincore.doMiner] this node is proposer, get justify", "curBlockNum", curBlockNum, "justify", hex.EncodeToString(qc.GetProposalId()))
 				case consensus.ConsensusTypePow:
 					xc.log.Trace("Minning tdpos ProcessBeforeMiner!")
 					targetBits = data["targetBits"].(int32)
@@ -648,6 +657,7 @@ func (xc *XChainCore) doMiner() {
 	}
 	fakeBlock, err := xc.Ledger.FormatFakeBlock(txs, xc.address, xc.privateKey,
 		t.UnixNano(), curTerm, curBlockNum, xc.Utxovm.GetLatestBlockid(), xc.Utxovm.GetTotal(), xc.Ledger.GetMeta().TrunkHeight+1)
+
 	if err != nil {
 		xc.log.Warn("[Minning] format fake block error", "logid")
 		return
@@ -673,6 +683,7 @@ func (xc *XChainCore) doMiner() {
 		xc.log.Warn("[Minning] format block error", "logid", header.Logid, "err", err)
 		return
 	}
+	xc.log.Debug("=====>[xchaincore.doMiner] generate new block", "height", xc.Ledger.GetMeta().TrunkHeight+1, "blockId", fmt.Sprintf("%x", freshBlock.Blockid))
 	minerTimer.Mark("Formatblock2")
 	xc.log.Debug("[Minning] Start to ConfirmBlock", "logid", header.Logid)
 	confirmStatus := xc.Ledger.ConfirmBlock(freshBlock, false)
@@ -702,9 +713,12 @@ func (xc *XChainCore) doMiner() {
 	}
 	go produceBlockEvent(xc.eventService, freshBlock, xc.bcname)
 	minerTimer.Mark("PlayForMiner")
+	xc.log.Info("=====>[xchaincore.doMiner] ProcessConfirmBlock make new proposal")
 	xc.con.ProcessConfirmBlock(freshBlock)
 	minerTimer.Mark("ProcessConfirmBlock")
 	xc.log.Debug("[Minning] Start to BroadCast", "logid", header.Logid)
+
+	xc.log.Info("=====>[xchaincore.doMiner] BroadcastBlock block =====>")
 
 	go func() {
 		// 这里提出两种块传播模式：

@@ -1,5 +1,7 @@
 package utxo
 
+import "fmt"
+
 //交易依赖关系图
 type TxGraph map[string][]string
 
@@ -79,6 +81,7 @@ func TopSortDFS(g TxGraph) (order []string, cyclic bool, childDAGSize []int) {
 
 	childDAGSize = make([]int, len(subGraphs))
 	for i, g := range subGraphs {
+		fmt.Println(g)
 		//记录每个DAG子图的大小
 		childDAGSize[len(subGraphs)-i-1] = len(g)
 		for _, n := range g {

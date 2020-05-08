@@ -571,6 +571,7 @@ func (tp *TDpos) ProcessBeforeMiner(timestamp int64) (map[string]interface{}, bo
 		if !tp.isFirstblock(tp.ledger.GetMeta().GetTrunkHeight() + 1) {
 			if ok, _ := tp.bftPaceMaker.IsLastViewConfirmed(); !ok {
 				tp.log.Warn("ProcessBeforeMiner last block not confirmed, walk to previous block")
+				tp.log.Info("=====>tdpos.ProcessBeforeMiner IsLastViewConfirmed false, truncate to last block height", "lastHeight", tp.ledger.GetMeta().GetTrunkHeight()-1)
 				lastBlockid := tp.ledger.GetMeta().GetTipBlockid()
 				lastBlock, err := tp.ledger.QueryBlock(lastBlockid)
 				if err != nil {
