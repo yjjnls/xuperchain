@@ -22,7 +22,8 @@ func (tp *TDpos) minerScheduling(timestamp int64) (term int64, pos int64, blockP
 	if timestamp < tp.initTimestamp {
 		return
 	}
-	tp.log.Trace("getTermPos", "timestamp", timestamp, "inittimestamp", tp.initTimestamp)
+	tp.log.Trace("getTermPos", "timestamp", timestamp, "inittimestamp", tp.initTimestamp, "delaytime", tp.delay)
+	timestamp += tp.delay * 1e6
 	// 每一轮的时间
 	termTime := tp.config.termInterval + (tp.config.proposerNum-1)*tp.config.alternateInterval +
 		tp.config.proposerNum*tp.config.period*(tp.config.blockNum-1)

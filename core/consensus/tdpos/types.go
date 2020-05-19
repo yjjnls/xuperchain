@@ -83,6 +83,7 @@ type TDpos struct {
 	// BFT module
 	bftPaceMaker *bft.DPoSPaceMaker
 	p2psvr       p2p_base.P2PServer
+	delay        int64
 }
 
 // tdpos 共识机制的配置

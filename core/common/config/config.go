@@ -119,6 +119,7 @@ type P2PConfig struct {
 // MinerConfig is the config of miner
 type MinerConfig struct {
 	Keypath string `yaml:"keypath,omitempty"`
+	Delay   int64  `yaml:"delay,omitempty"`
 }
 
 // UtxoConfig is the config of UtxoVM

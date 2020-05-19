@@ -70,6 +70,7 @@ func (tp *TDpos) Configure(xlog log.Logger, cfg *config.NodeConfig, consCfg map[
 	}
 	tp.log = xlog
 	tp.address = address
+	tp.delay = cfg.Miner.Delay
 
 	switch extParams["crypto_client"].(type) {
 	case crypto_base.CryptoClient:
